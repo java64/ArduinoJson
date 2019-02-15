@@ -242,12 +242,14 @@ class JsonDeserializer {
 
   static uint8_t matchPrefix(const char *candidate, const char *expression) {
     uint8_t n = 0;
-    while (*candidate == *expression && *expression) {
+    for (;;) {
+      if (*expression == 0) return n;
+      if (*candidate == 0) return n;
+      if (*candidate != *expression) return 0;
       candidate++;
       expression++;
       n++;
     }
-    return n;
   }
 
   DeserializationError parseNumericValue(VariantData &result) {

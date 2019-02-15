@@ -8,7 +8,8 @@
 
 TEST_CASE("Invalid JSON input") {
   const char* testCases[] = {"'\\u'",     "'\\u000g'", "'\\u000'",
-                             "'\\u000G'", "'\\u000/'", "\\x1234"};
+                             "'\\u000G'", "'\\u000/'", "\\x1234",
+                             "nulL",      "tru3",      "fals3"};
   const size_t testCount = sizeof(testCases) / sizeof(testCases[0]);
 
   DynamicJsonDocument doc(4096);
