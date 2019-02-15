@@ -69,6 +69,16 @@ class JsonDeserializer {
     return true;
   }
 
+  DeserializationError eat(const char *s) {
+    while (*s) {
+      if (current() == 0) return DeserializationError::IncompleteInput;
+      if (current() != *s) return DeserializationError::InvalidInput;
+      move();
+      s++;
+    }
+    return DeserializationError::Ok;
+  }
+
   DeserializationError parseArray(CollectionData &array) {
     if (_nestingLimit == 0) return DeserializationError::TooDeep;
 
@@ -155,10 +165,18 @@ class JsonDeserializer {
   }
 
   DeserializationError parseValue(VariantData &variant) {
-    if (isQuote(current())) {
-      return parseStringValue(variant);
-    } else {
-      return parseNumericValue(variant);
+    switch (current()) {
+      case '\'':
+      case '\"':
+        return parseStringValue(variant);
+      case 'n':
+        return parseNull();
+      case 'f':
+        return parseFalse(variant);
+      case 't':
+        return parseTrue(variant);
+      default:
+        return parseNumericValue(variant);
     }
   }
 
@@ -240,6 +258,23 @@ class JsonDeserializer {
     return DeserializationError::Ok;
   }
 
+  DeserializationError parseTrue(VariantData &result) {
+    DeserializationError err = eat("true");
+    if (!err) result.setBoolean(true);
+    return err;
+  }
+
+  DeserializationError parseFalse(VariantData &result) {
+    DeserializationError err = eat("false");
+    if (!err) result.setBoolean(false);
+    return err;
+  }
+
+  DeserializationError parseNull() {
+    DeserializationError err = eat("null");
+    return err;
+  }
+
   DeserializationError parseNumericValue(VariantData &result) {
     char buffer[64];
     uint8_t n = 0;
@@ -256,12 +291,6 @@ class JsonDeserializer {
       result.setInteger(parseInteger<Integer>(buffer));
     } else if (isFloat(buffer)) {
       result.setFloat(parseFloat<Float>(buffer));
-    } else if (!strcmp(buffer, "true")) {
-      result.setBoolean(true);
-    } else if (!strcmp(buffer, "false")) {
-      result.setBoolean(false);
-    } else if (!strcmp(buffer, "null")) {
-      // already null
     } else {
       return DeserializationError::InvalidInput;
     }

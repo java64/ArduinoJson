@@ -6,8 +6,6 @@
 #include <ArduinoJson.h>
 #include <catch.hpp>
 
-using namespace Catch::Matchers;
-
 TEST_CASE("Valid JSON strings value") {
   struct TestCase {
     const char* input;
@@ -34,33 +32,5 @@ TEST_CASE("Valid JSON strings value") {
     DeserializationError err = deserializeJson(doc, testCase.input);
     REQUIRE(err == DeserializationError::Ok);
     REQUIRE(doc.as<std::string>() == testCase.expectedOutput);
-  }
-}
-
-TEST_CASE("Truncated JSON string") {
-  const char* testCases[] = {"\"hello", "\'hello", "'\\u", "'\\u00", "'\\u000"};
-  const size_t testCount = sizeof(testCases) / sizeof(testCases[0]);
-
-  DynamicJsonDocument doc(4096);
-
-  for (size_t i = 0; i < testCount; i++) {
-    const char* input = testCases[i];
-    CAPTURE(input);
-    REQUIRE(deserializeJson(doc, input) ==
-            DeserializationError::IncompleteInput);
-  }
-}
-
-TEST_CASE("Invalid JSON string") {
-  const char* testCases[] = {"'\\u'",     "'\\u000g'", "'\\u000'",
-                             "'\\u000G'", "'\\u000/'", "\\x1234"};
-  const size_t testCount = sizeof(testCases) / sizeof(testCases[0]);
-
-  DynamicJsonDocument doc(4096);
-
-  for (size_t i = 0; i < testCount; i++) {
-    const char* input = testCases[i];
-    CAPTURE(input);
-    REQUIRE(deserializeJson(doc, input) == DeserializationError::InvalidInput);
   }
 }
