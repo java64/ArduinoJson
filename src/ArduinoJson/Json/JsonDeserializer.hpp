@@ -69,16 +69,6 @@ class JsonDeserializer {
     return true;
   }
 
-  DeserializationError eat(const char *s) {
-    while (*s) {
-      if (current() == 0) return DeserializationError::IncompleteInput;
-      if (current() != *s) return DeserializationError::InvalidInput;
-      move();
-      s++;
-    }
-    return DeserializationError::Ok;
-  }
-
   DeserializationError parseArray(CollectionData &array) {
     if (_nestingLimit == 0) return DeserializationError::TooDeep;
 
@@ -165,18 +155,10 @@ class JsonDeserializer {
   }
 
   DeserializationError parseValue(VariantData &variant) {
-    switch (current()) {
-      case '\'':
-      case '\"':
-        return parseStringValue(variant);
-      case 'n':
-        return parseNull();
-      case 'f':
-        return parseFalse(variant);
-      case 't':
-        return parseTrue(variant);
-      default:
-        return parseNumericValue(variant);
+    if (isQuote(current())) {
+      return parseStringValue(variant);
+    } else {
+      return parseNumericValue(variant);
     }
   }
 
@@ -258,21 +240,14 @@ class JsonDeserializer {
     return DeserializationError::Ok;
   }
 
-  DeserializationError parseTrue(VariantData &result) {
-    DeserializationError err = eat("true");
-    if (!err) result.setBoolean(true);
-    return err;
-  }
-
-  DeserializationError parseFalse(VariantData &result) {
-    DeserializationError err = eat("false");
-    if (!err) result.setBoolean(false);
-    return err;
-  }
-
-  DeserializationError parseNull() {
-    DeserializationError err = eat("null");
-    return err;
+  static uint8_t matchPrefix(const char *candidate, const char *expression) {
+    uint8_t n = 0;
+    while (*candidate == *expression && *expression) {
+      candidate++;
+      expression++;
+      n++;
+    }
+    return n;
   }
 
   DeserializationError parseNumericValue(VariantData &result) {
@@ -289,12 +264,30 @@ class JsonDeserializer {
 
     if (isInteger(buffer)) {
       result.setInteger(parseInteger<Integer>(buffer));
-    } else if (isFloat(buffer)) {
-      result.setFloat(parseFloat<Float>(buffer));
-    } else {
-      return DeserializationError::InvalidInput;
+      return DeserializationError::Ok;
     }
-    return DeserializationError::Ok;
+    if (isFloat(buffer)) {
+      result.setFloat(parseFloat<Float>(buffer));
+      return DeserializationError::Ok;
+    }
+    n = matchPrefix(buffer, "true");
+    if (n > 0) {
+      result.setBoolean(true);
+      return n == 4 ? DeserializationError::Ok
+                    : DeserializationError::IncompleteInput;
+    }
+    n = matchPrefix(buffer, "false");
+    if (n > 0) {
+      result.setBoolean(false);
+      return n == 5 ? DeserializationError::Ok
+                    : DeserializationError::IncompleteInput;
+    }
+    n = matchPrefix(buffer, "null");
+    if (n > 0) {
+      return n == 4 ? DeserializationError::Ok
+                    : DeserializationError::IncompleteInput;
+    }
+    return DeserializationError::InvalidInput;
   }
 
   DeserializationError parseCodepoint(uint16_t &codepoint) {
